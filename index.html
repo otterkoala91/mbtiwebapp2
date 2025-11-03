@@ -1,0 +1,534 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>미래 직업 탐험 퀴즈 (MBTI편)</title>
+    <!-- Tailwind CSS 로드 --><script src="https://cdn.tailwindcss.com"></script>
+    <!-- 귀여운 한글 폰트 (Gaegu) 및 기본 폰트 (Noto Sans KR) 로드 --><link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Gaegu:wght@400;700&family=Noto+Sans+KR:wght@400;700&display=swap" rel="stylesheet">
+    
+    <style>
+        /* Gaegu 폰트를 기본으로 하되, Noto Sans KR을 폴백으로 지정 */
+        body {
+            font-family: 'Gaegu', 'Noto Sans KR', sans-serif;
+            background-color: #FFFAF0; /* 부드러운 배경색 */
+        }
+
+        /* 버튼 기본 스타일 */
+        .btn {
+            @apply px-6 py-3 m-2 rounded-full text-lg font-bold text-white shadow-lg transition-transform transform hover:scale-105 focus:outline-none;
+        }
+        
+        /* 퀴즈 답변 버튼 스타일 */
+        .answer-btn {
+             @apply px-6 py-4 m-2 rounded-2xl text-2xl font-bold text-white shadow-lg transition-transform transform hover:scale-105 focus:outline-none w-full text-center;
+        }
+        
+        /* 로더(spinner) 스타일 */
+        .loader {
+            border: 8px solid #f3f3f3; /* Light grey */
+            border-top: 8px solid #6366F1; /* Indigo */
+            border-radius: 50%;
+            width: 60px;
+            height: 60px;
+            animation: spin 1.5s linear infinite;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+    </style>
+</head>
+<body class="flex items-center justify-center min-h-screen">
+
+    <div class="w-full max-w-lg p-6 mx-auto bg-white rounded-3xl shadow-2xl text-center">
+
+        <!-- 1. 시작 화면 --><div id="welcome-screen">
+            <h1 class="text-5xl font-bold text-indigo-600 mb-4">나의 MBTI 진로 탐험!</h1>
+            <img src="https://placehold.co/400x200/A5B4FC/312E81?text=My+MBTI+Quiz!" alt="퀴즈 시작 배너" class="rounded-2xl mx-auto mb-6 shadow-md"
+                 onerror="this.src='https://placehold.co/400x200/A5B4FC/312E81?text=Ready%3F'">
+            <p class="text-2xl text-gray-700 mb-8">
+                나는 어떤 사람일까?<br>20개의 간단한 퀴즈로<br>나의 MBTI와 어울리는 직업을 찾아보아요!
+            </p>
+            <button id="start-btn" class="btn bg-indigo-500 hover:bg-indigo-600 text-3xl px-10 py-4">
+                시작!
+            </button>
+        </div>
+
+        <!-- 2. 퀴즈 화면 --><div id="quiz-screen" class="hidden">
+            <div id="progress-bar" class="w-full bg-gray-200 rounded-full h-4 mb-4">
+                <div id="progress" class="bg-green-400 h-4 rounded-full" style="width: 0%"></div>
+            </div>
+            <h2 id="question-number" class="text-xl font-bold text-gray-500 mb-2">질문 1/20</h2>
+            <h3 id="question-text" class="text-3xl font-bold text-gray-800 mb-8 h-24 flex items-center justify-center">질문 내용</h3>
+            <div id="answer-buttons" class="grid grid-cols-1 gap-4">
+                <!-- 답변 버튼이 여기에 동적으로 추가됩니다 --></div>
+        </div>
+
+        <!-- 3. 결과 화면 --><div id="result-screen" class="hidden">
+            <h2 class="text-2xl text-gray-600 mb-2">나의 MBTI 유형은...</h2>
+            <h1 id="result-type" class="text-5xl font-bold text-purple-600 mb-4">결과 유형</h1>
+            <p id="result-description" class="text-xl text-gray-700 mb-8 p-4 bg-purple-50 rounded-lg">
+                유형 설명
+            </p>
+            <h3 class="text-3xl font-bold text-gray-800 mb-4">이런 직업은 어때요?</h3>
+            <div id="job-buttons" class="flex flex-wrap justify-center gap-3">
+                <!-- 추천 직업 버튼이 여기에 동적으로 추가됩니다 --></div>
+        </div>
+
+        <!-- 4. 이미지 생성 화면 --><div id="image-gen-screen" class="hidden">
+            <h2 class="text-3xl font-bold text-gray-800 mb-2">
+                <span id="selected-job" class="text-blue-600"></span>
+                (이)가 된 나의 모습!
+            </h2>
+            <p class="text-xl text-gray-600 mb-6">성별을 고르고 '그림 만들기' 버튼을 눌러주세요.</p>
+            
+            <!-- 성별 선택 --><div id="gender-buttons" class="mb-6">
+                <button class="gender-btn btn bg-blue-400 hover:bg-blue-500" data-gender="남자">
+                    👦 남자
+                </button>
+                <button class="gender-btn btn bg-pink-400 hover:bg-pink-500" data-gender="여자">
+                    👧 여자
+                </button>
+            </div>
+
+            <!-- 그림 생성 버튼 --><button id="generate-btn" class="btn bg-gray-400 text-2xl px-8 py-3" disabled>
+                🎨 그림 만들기!
+            </button>
+
+            <!-- 로딩 및 결과 표시 --><div id="image-result-area" class="mt-8">
+                <!-- 로더 --><div id="loader" class="hidden loader mx-auto"></div>
+                <!-- 에러 메시지 --><p id="error-message" class="hidden text-red-500 text-lg"></p>
+                <!-- 결과 이미지 --><img id="result-image" src="" alt="미래 직업 이미지" class="hidden rounded-2xl shadow-lg mx-auto w-full max-w-md">
+            </div>
+            
+            <button id="restart-btn" class="btn bg-gray-400 hover:bg-gray-500 mt-8">
+                처음으로 돌아가기
+            </button>
+        </div>
+    </div>
+
+    <script type="module">
+        // --- 화면 요소들 ---
+        const welcomeScreen = document.getElementById('welcome-screen');
+        const quizScreen = document.getElementById('quiz-screen');
+        const resultScreen = document.getElementById('result-screen');
+        const imageGenScreen = document.getElementById('image-gen-screen');
+
+        const startBtn = document.getElementById('start-btn');
+        const questionNumber = document.getElementById('question-number');
+        const questionText = document.getElementById('question-text');
+        const answerButtons = document.getElementById('answer-buttons');
+        const progressBar = document.getElementById('progress');
+
+        const resultType = document.getElementById('result-type');
+        const resultDescription = document.getElementById('result-description');
+        const jobButtons = document.getElementById('job-buttons');
+
+        const selectedJobText = document.getElementById('selected-job');
+        const genderButtons = document.querySelectorAll('.gender-btn');
+        const generateBtn = document.getElementById('generate-btn');
+        const loader = document.getElementById('loader');
+        const errorMessage = document.getElementById('error-message');
+        const resultImage = document.getElementById('result-image');
+        const restartBtn = document.getElementById('restart-btn');
+
+        // --- 퀴즈 데이터 (MBTI 16유형 기반) ---
+        
+        // 16가지 유형별 별명 및 설명
+        const descriptions = {
+            'ISTJ': { nickname: '성실한 모범생 🧑‍🏫', desc: '책임감이 강하고 맡은 일을 꾸준히 해내는 성실한 친구예요! 규칙을 잘 지키는 것을 중요하게 생각해요.' },
+            'ISFJ': { nickname: '다정한 돕기 요정 🧚', desc: '조용하고 차분하지만, 친구들을 돕는 일에 가장 먼저 나서는 따뜻한 마음을 가졌어요.' },
+            'INFJ': { nickname: '따뜻한 예언가 🔮', desc: '다른 사람의 마음을 잘 이해하고, 더 좋은 세상을 만들기 위해 깊이 생각하는 친구예요.' },
+            'INTJ': { nickname: '똑똑한 전략가 🧠', desc: '호기심이 많고 똑똑해요! 복잡한 문제도 논리적으로 착착 해결하는 것을 좋아해요.' },
+            'ISTP': { nickname: '만능 재주꾼 🛠️', desc: '손재주가 좋고 도구를 잘 다뤄요. 직접 무언가를 만들고 탐험하는 것을 좋아해요.' },
+            'ISFP': { nickname: '마음 따뜻한 예술가 🎨', desc: '겸손하고 마음이 따뜻해요. 아름다운 것을 좋아하고, 예술적인 감각이 뛰어나요.' },
+            'INFP': { nickname: '꿈꾸는 이상가 몽상가 🌈', desc: '상상력이 풍부하고 착해요. 자신만의 꿈과 가치를 중요하게 생각하는 친구예요.' },
+            'INTP': { nickname: '아이디어 뱅크 💡', desc: '조용하지만 머릿속은 아이디어로 가득 차 있어요! 논리적으로 생각하고 분석하는 것을 좋아해요.' },
+            'ESTP': { nickname: '활발한 탐험가 🏂', desc: '에너지가 넘치고 활동적이에요! 친구들과 어울리는 것을 좋아하고, 새로운 일에 도전하는 것을 즐겨요.' },
+            'ESFP': { nickname: '자유로운 슈퍼스타 🌟', desc: '언제나 밝고 인기가 많아요! 친구들과 함께 즐거운 시간을 보내는 것을 가장 좋아해요.' },
+            'ENFP': { nickname: '반짝이는 활동가 ✨', desc: '상상력이 풍부하고 열정이 넘쳐요! 새로운 친구 사귀는 것을 좋아하고, 재밌는 일을 찾아다녀요.' },
+            'ENTP': { nickname: '뜨거운 토론가 🔥', desc: '말하는 것을 좋아하고, 똑똑한 장난꾸러기예요. 새로운 아이디어로 토론하는 것을 즐겨요.' },
+            'ESTJ': { nickname: '믿음직한 반장 🧑‍⚖️', desc: '책임감이 강하고 계획을 잘 세워요. 친구들을 이끌고 규칙을 잘 지키는 훌륭한 리더예요.' },
+            'ESFJ': { nickname: '친절한 분위기 메이커 💖', desc: '친절하고 친구들을 잘 챙겨요. 다른 사람을 돕는 것을 좋아하고, 주변 분위기를 밝게 만들어요.' },
+            'ENFJ': { nickname: '정의로운 주인공 🦸', desc: '친구들에게 관심이 많고, 다른 사람을 돕기 위해 앞장서는 정의롭고 따뜻한 리더예요.' },
+            'ENTJ': { nickname: '대담한 지휘관 🎖️', desc: '자신감이 넘치고, 친구들을 이끄는 것을 잘해요. 큰 꿈을 갖고 도전하는 것을 두려워하지 않아요.' }
+        };
+        
+        // 20개 퀴즈 질문 (E/I, S/N, T/F, J/P 각 5개)
+        const questions = [
+            // E (외향) vs I (내향)
+            { question: '주말에 뭐 하고 싶어?', answers: [{ text: '친구들과 밖에서 신나게 놀기', type: 'E' }, { text: '집에서 조용히 책 읽거나 그림 그리기', type: 'I' }] },
+            { question: '수업시간에 나는?', answers: [{ text: '손들고 큰 소리로 발표하는 편', type: 'E' }, { text: '조용히 듣고 속으로 생각하는 편', type: 'I' }] },
+            { question: '새로운 친구를 만났을 때', answers: [{ text: '내가 먼저 다가가서 말을 건다', type: 'E' }, { text: '친구가 먼저 말을 걸어주길 기다린다', type: 'I' }] },
+            { question: '생일 파티를 한다면?', answers: [{ text: '친구들을 많이 불러서 시끌벅적하게!', type: 'E' }, { text: '친한 친구 몇 명과 조용하게!', type: 'I' }] },
+            { question: '힘들 때 기분이 풀리는 법은?', answers: [{ text: '친구들과 수다 떨기', type: 'E' }, { text: '혼자만의 시간 갖기', type: 'I' }] },
+            // S (감각) vs N (직관)
+            { question: '이야기를 들을 때 더 재미있는 것은?', answers: [{ text: '진짜 있었던 일, 자세한 이야기', type: 'S' }, { text: '앞으로 일어날 일, 상상 속 이야기', type: 'N' }] },
+            { question: '새로운 장난감이 생기면?', answers: [{ text: '설명서를 꼼꼼히 보고 따라 만든다', type: 'S' }, { text: '설명서 없이 내 맘대로 새롭게 만든다', type: 'N' }] },
+            { question: '동화책을 읽을 때 나는?', answers: [{ text: '그림을 자세히 살펴본다', type: 'S' }, { text: '다음에 어떻게 될지 상상해본다', type: 'N' }] },
+            { question: '길을 걸을 때 나는?', answers: [{ text: '간판이나 예쁜 꽃을 구경한다', type: 'S' }, { text: '다른 생각이나 공상에 빠진다', type: 'N' }] },
+            { question: '더 좋아하는 칭찬은?', answers: [{ text: '"그림을 꼼꼼하게 잘 그렸네!"', type: 'S' }, { text: '"그림 아이디어가 정말 새롭다!"', type: 'N' }] },
+            // T (사고) vs F (감정)
+            { question: '친구가 넘어졌을 때 나의 첫마디는?', answers: [{ text: '"어디 다쳤어? 피 나?" (상황 파악)', type: 'T' }, { text: '"어떡해! 많이 아프겠다!" (공감)', type: 'F' }] },
+            { question: '숙제를 할 때 더 중요한 것은?', answers: [{ text: '틀린 것 없이 정확하게 하는 것', type: 'T' }, { text: '선생님 마음에 들게 예쁘게 하는 것', type: 'F' }] },
+            { question: '친구와 다퉜을 때', answers: [{ text: '누가 잘못했는지 따져본다', type: 'T' }, { text: '친구가 상처받았을까 봐 걱정된다', type: 'F' }] },
+            { question: '더 기분 좋은 말은?', answers: [{ text: '"너 정말 똑똑하다!"', type: 'T' }, { text: '"너 정말 착하다!"', 'type': 'F' }] },
+            { question: '게임을 할 때 나는?', answers: [{ text: '이기는 게 제일 중요하다', type: 'T' }, { text: '다 같이 재미있는 게 더 중요하다', type: 'F' }] },
+            // J (판단) vs P (인식)
+            { question: '방학 숙제는?', answers: [{ text: '계획표를 짜서 매일 조금씩 미리 한다', type: 'J' }, { text: '마지막 날에 몰아서 한다', type: 'P' }] },
+            { question: '내 방은?', answers: [{ text: '물건이 제자리에 정리되어 있다', type: 'J' }, { text: '자유롭게 놓여 있지만 어디 있는지 다 안다', type: 'P' }] },
+            { question: '여행을 간다면?', answers: [{ text: '갈 곳을 미리 다 정해놓고 간다', type: 'J' }, { text: '그때그때 발길 닿는 대로 다닌다', type: 'P' }] },
+            { question: '친구와 약속을 잡을 때', answers: [{ text: '시간과 장소를 정확하게 정하는 게 편하다', type: 'J' }, { text: '"그때 만나!" 처럼 편하게 정하는 게 좋다', type: 'P' }] },
+            { question: '더 편한 것은?', answers: [{ text: '할 일을 미리 끝내고 쉬는 것', type: 'J' }, { text: '놀다가 마지막에 할 일을 하는 것', type: 'P' }] }
+        ];
+
+        // 16가지 유형별 추천 직업 5가지
+        const jobRecommendations = {
+            'ISTJ': ['사서', '회계사', '판사', '약사', '건축가'],
+            'ISFJ': ['의사', '간호사', '선생님', '사회복지사', '수의사'],
+            'INFJ': ['상담사', '작가', '디자이너', '심리학자', '환경운동가'],
+            'INTJ': ['과학자', '프로그래머', '변호사', '엔지니어', '경제학자'],
+            'ISTP': ['소방관', '요리사', '운동선수', '정비사', '파일럿'],
+            'ISFP': ['화가', '가수', '패션 디자이너', '꽃집 주인', '보석 디자이너'],
+            'INFP': ['작가', '만화가', '배우', '사서', '유치원 선생님'],
+            'INTP': ['프로그래머', '과학자', '발명가', '대학교수', '비평가'],
+            'ESTP': ['운동선수', '경찰관', '사업가', '유튜버', '응급구조사'],
+            'ESFP': ['배우', '가수', 'MC(진행자)', '승무원', '이벤트 기획자'],
+            'ENFP': ['유튜버', '작가', '광고 기획자', '배우', '기자'],
+            'ENTP': ['발명가', '변호사', '영화감독', '광고 기획자', '정치인'],
+            'ESTJ': ['사장님(CEO)', '판사', '교장 선생님', '감독', '경찰관'],
+            'ESFJ': ['선생님', '간호사', '승무원', '비서', '파티 플래너'],
+            'ENFJ': ['선생님', '상담사', '아나운서', '사회복지사', '정치인'],
+            'ENTJ': ['사장님(CEO)', '변호사', '영화감독', '장군', '발명가']
+        };
+
+        // 직업별 구체적인 활동 및 배경 정보 (애니메이션 이미지를 위해 추가)
+        const jobDetails = {
+            '사서': { activity: '도서관에서 책을 정리하고, 아이들에게 책을 읽어주는', background: '밝고 아늑한 도서관' },
+            '회계사': { activity: '책상에 앉아 컴퓨터로 숫자를 정리하는', background: '깔끔한 사무실' },
+            '판사': { activity: '법정에서 의자에 앉아 판결을 내리는', background: '엄숙한 법정' },
+            '약사': { activity: '약국에서 약을 조제하고 환자에게 설명하는', background: '밝고 깨끗한 약국' },
+            '건축가': { activity: '설계도면을 펼쳐놓고 연필로 그림을 그리는', background: '창문이 넓은 디자인 스튜디오' },
+
+            '의사': { activity: '병원에서 환자의 아픈 곳을 살피는', background: '따뜻한 분위기의 진료실' },
+            '간호사': { activity: '환자 옆에서 미소 지으며 돌보는', background: '깔끔한 병실' },
+            '선생님': { activity: '칠판 앞에서 아이들에게 재미있게 설명하는', background: '활기찬 교실' },
+            '사회복지사': { activity: '필요한 사람들을 찾아가 이야기를 들어주는', background: '정감 있는 동네 골목' },
+            '수의사': { activity: '작은 동물을 다정하게 치료하는', background: '아기자기한 동물병원' },
+            
+            '상담사': { activity: '편안한 의자에 앉아 고민을 들어주는', background: '조용하고 안락한 상담실' },
+            '작가': { activity: '창가에 앉아 노트북으로 이야기를 쓰는', background: '따뜻한 서재' },
+            '디자이너': { activity: '컴퓨터로 새로운 옷이나 물건을 디자인하는', background: '감각적인 디자인 스튜디오' },
+            '심리학자': { activity: '사람의 마음을 그림으로 분석하는', background: '차분한 연구실' },
+            '환경운동가': { activity: '숲에서 나무를 심고 자연을 돌보는', background: '푸른 숲 속' },
+
+            '과학자': { activity: '실험실에서 비커와 시험관으로 실험하는', background: '첨단 장비가 있는 연구실' },
+            '프로그래머': { activity: '컴퓨터 화면을 보며 코드를 입력하는', background: '모니터가 많은 작업 공간' },
+            '변호사': { activity: '서류를 검토하며 진지하게 생각하는', background: '책이 가득한 사무실' },
+            '엔지니어': { activity: '복잡한 기계를 조립하거나 고치는', background: '다양한 공구가 있는 작업장' },
+            '경제학자': { activity: '복잡한 그래프를 보며 미래를 예측하는', background: '높은 빌딩의 사무실' },
+
+            '소방관': { activity: '화재 현장에서 용감하게 불을 끄는', background: '연기가 자욱한 건물 앞' },
+            '요리사': { activity: '주방에서 맛있는 음식을 만드는', background: '활기찬 주방' },
+            '운동선수': { activity: '경기장에서 땀 흘리며 훈련하는', background: '넓은 운동장' },
+            '정비사': { activity: '고장 난 차를 꼼꼼하게 고치는', background: '공구가 많은 정비소' },
+            '파일럿': { activity: '조종석에서 비행기를 운전하는', background: '구름 위 비행기 조종석' },
+
+            '화가': { activity: '이젤 앞에서 붓으로 그림을 그리는', background: '햇살이 비치는 화실' },
+            '가수': { activity: '무대 위에서 마이크를 들고 노래하는', background: '화려한 콘서트 무대' },
+            '패션 디자이너': { activity: '옷감을 재단하고 재봉틀로 옷을 만드는', background: '세련된 패션 스튜디오' },
+            '꽃집 주인': { activity: '예쁜 꽃들 사이에서 꽃다발을 만드는', background: '향긋한 꽃집' },
+            '보석 디자이너': { activity: '작은 보석을 섬세하게 세공하는', background: '반짝이는 보석 공방' },
+
+            '만화가': { activity: '펜으로 태블릿에 만화를 그리는', background: '아기자기한 작업실' },
+            '배우': { activity: '무대 위에서 멋진 연기를 펼치는', background: '밝은 조명의 연극 무대' },
+            '유치원 선생님': { activity: '아이들과 함께 노래 부르며 놀아주는', background: '색색깔의 유치원 교실' },
+            '비평가': { activity: '책상에 앉아 영화나 책에 대해 글을 쓰는', background: '고급스러운 서재' },
+
+            '발명가': { activity: '기발한 아이디어로 새로운 장치를 만드는', background: '온갖 도구로 가득 찬 실험실' },
+            '대학교수': { activity: '학생들에게 어려운 내용을 쉽고 재미있게 가르치는', background: '높은 강단이 있는 강의실' },
+            
+            '경찰관': { activity: '도로에서 교통 정리를 하거나 순찰하는', background: '활기찬 도시 거리' },
+            '사업가': { activity: '사람들과 활발하게 회의하며 새로운 계획을 세우는', background: '세련된 회의실' },
+            '유튜버': { activity: '카메라 앞에서 재미있는 영상을 촬영하는', background: '조명이 설치된 스튜디오' },
+            '응급구조사': { activity: '위급한 환자를 침착하게 돕는', background: '삐뽀삐뽀 구급차 옆' },
+
+            'MC(진행자)': { activity: '방송 스튜디오에서 활기차게 프로그램을 진행하는', background: '화려한 방송 스튜디오' },
+            '승무원': { activity: '비행기 안에서 승객들을 친절하게 안내하는', background: '깨끗한 비행기 내부' },
+            '이벤트 기획자': { activity: '파티나 행사를 멋지게 준비하는', background: '화려하게 꾸며진 이벤트 홀' },
+
+            '광고 기획자': { activity: '새로운 광고 아이디어를 스케치하는', background: '창의적인 아이디어 회의실' },
+            '기자': { activity: '현장에서 소식을 취재하고 기록하는', background: '많은 사람들이 모인 현장' },
+            '정치인': { activity: '많은 사람들 앞에서 연설하는', background: '청중이 가득한 강당' },
+
+            '교장 선생님': { activity: '교장실에서 학교의 중요한 일을 결정하는', background: '품위 있는 교장실' },
+            '감독': { activity: '촬영 현장에서 배우들을 지휘하는', background: '영화 촬영 현장' },
+
+            '비서': { activity: '상사의 업무를 꼼꼼하게 돕는', background: '단정하고 효율적인 사무실' },
+            '파티 플래너': { activity: '아름다운 소품들로 파티장을 꾸미는', background: '화려하게 장식된 파티장' },
+
+            '아나운서': { activity: '뉴스 스튜디오에서 정확한 소식을 전달하는', background: '깔끔한 뉴스 스튜디오' },
+            
+            '장군': { activity: '지휘실에서 작전을 세우는', background: '전략 지도와 무전기가 있는 지휘실' }
+        };
+
+
+        let currentQuestionIndex = 0;
+        let scores = { E: 0, I: 0, S: 0, N: 0, T: 0, F: 0, J: 0, P: 0 };
+
+        // --- 퀴즈 로직 ---
+
+        startBtn.addEventListener('click', startQuiz);
+        restartBtn.addEventListener('click', () => {
+            // 모든 값 초기화
+            currentQuestionIndex = 0;
+            scores = { E: 0, I: 0, S: 0, N: 0, T: 0, F: 0, J: 0, P: 0 };
+            selectedJob = null;
+            selectedGender = null;
+            
+            // 버튼 상태 초기화
+            generateBtn.disabled = true;
+            generateBtn.classList.add('bg-gray-400');
+            generateBtn.classList.remove('bg-green-500', 'hover:bg-green-600');
+            genderButtons.forEach(btn => btn.classList.remove('ring-4', 'ring-offset-2', 'ring-indigo-500'));
+            
+            // 이미지 및 메시지 숨기기
+            resultImage.classList.add('hidden');
+            resultImage.src = '';
+            errorMessage.classList.add('hidden');
+            loader.classList.add('hidden');
+            
+            // 화면 전환
+            showScreen(welcomeScreen);
+        });
+        
+        // 화면 전환 함수
+        function showScreen(screen) {
+            welcomeScreen.classList.add('hidden');
+            quizScreen.classList.add('hidden');
+            resultScreen.classList.add('hidden');
+            imageGenScreen.classList.add('hidden');
+            screen.classList.remove('hidden');
+        }
+
+        // 퀴즈 시작
+        function startQuiz() {
+            currentQuestionIndex = 0;
+            scores = { E: 0, I: 0, S: 0, N: 0, T: 0, F: 0, J: 0, P: 0 };
+            showScreen(quizScreen);
+            showQuestion();
+        }
+
+        // 질문 보여주기
+        function showQuestion() {
+            if (currentQuestionIndex >= questions.length) {
+                showResult();
+                return;
+            }
+            
+            const q = questions[currentQuestionIndex];
+            questionNumber.textContent = `질문 ${currentQuestionIndex + 1}/${questions.length}`;
+            questionText.textContent = q.question;
+            answerButtons.innerHTML = '';
+            
+            // 진행도 업데이트
+            progressBar.style.width = `${((currentQuestionIndex) / questions.length) * 100}%`;
+            
+            // 2개의 답변 버튼 생성
+            const colors = ['bg-blue-500', 'bg-red-500'];
+            const hoverColors = ['hover:bg-blue-600', 'hover:bg-red-600'];
+            
+            q.answers.forEach((answer, index) => {
+                const button = document.createElement('button');
+                button.textContent = answer.text;
+                button.classList.add('answer-btn', colors[index % 2], hoverColors[index % 2]);
+                button.dataset.type = answer.type;
+                button.addEventListener('click', selectAnswer);
+                answerButtons.appendChild(button);
+            });
+        }
+
+        // 답변 선택
+        function selectAnswer(e) {
+            const selectedType = e.target.dataset.type;
+            scores[selectedType]++;
+            currentQuestionIndex++;
+            showQuestion();
+        }
+
+        // 결과 보여주기 (로직 수정)
+        function showResult() {
+            progressBar.style.width = '100%'; // 퀴즈 완료
+            
+            // MBTI 유형 계산 (동점일 경우 I, N, F, P 선호)
+            let finalType = '';
+            finalType += (scores.E > scores.I) ? 'E' : 'I';
+            finalType += (scores.S > scores.N) ? 'S' : 'N';
+            finalType += (scores.T > scores.F) ? 'T' : 'F';
+            finalType += (scores.J > scores.P) ? 'J' : 'P';
+            
+            const resultData = descriptions[finalType];
+            
+            // 결과 화면 채우기
+            resultType.textContent = `${finalType} (${resultData.nickname})`;
+            resultDescription.textContent = resultData.desc;
+            jobButtons.innerHTML = '';
+            
+            // 추천 직업 버튼 생성
+            const colors = ['bg-indigo-500', 'bg-purple-500', 'bg-pink-500', 'bg-teal-500', 'bg-orange-500'];
+            const hoverColors = ['hover:bg-indigo-600', 'hover:bg-purple-600', 'hover:bg-pink-600', 'hover:bg-teal-600', 'hover:bg-orange-600'];
+            
+            jobRecommendations[finalType].forEach((job, index) => {
+                const button = document.createElement('button');
+                button.textContent = job;
+                button.classList.add('btn', colors[index % colors.length], hoverColors[index % colors.length]);
+                button.dataset.job = job;
+                button.addEventListener('click', selectJob);
+                jobButtons.appendChild(button);
+            });
+            
+            showScreen(resultScreen);
+        }
+
+        // --- 이미지 생성 로직 (프롬프트 강화) ---
+
+        let selectedJob = null;
+        let selectedGender = null;
+        
+        // 직업 선택
+        function selectJob(e) {
+            selectedJob = e.target.dataset.job;
+            selectedJobText.textContent = selectedJob;
+            showScreen(imageGenScreen);
+        }
+
+        // 성별 선택
+        genderButtons.forEach(button => {
+            button.addEventListener('click', () => {
+                selectedGender = button.dataset.gender;
+                
+                // 선택된 버튼 시각적 표시
+                genderButtons.forEach(btn => btn.classList.remove('ring-4', 'ring-offset-2', 'ring-indigo-500'));
+                button.classList.add('ring-4', 'ring-offset-2', 'ring-indigo-500');
+                
+                // 생성 버튼 활성화
+                generateBtn.disabled = false;
+                generateBtn.classList.remove('bg-gray-400');
+                generateBtn.classList.add('bg-green-500', 'hover:bg-green-600');
+            });
+        });
+
+        // 이미지 생성 버튼 클릭
+        generateBtn.addEventListener('click', generateImage);
+
+        // 이미지 생성 API 호출 (프롬프트 강화)
+        async function generateImage() {
+            if (!selectedJob || !selectedGender) return;
+            
+            // 로더 보이기, 이전 결과 숨기기
+            loader.classList.remove('hidden');
+            errorMessage.classList.add('hidden');
+            resultImage.classList.add('hidden');
+            resultImage.src = '';
+            generateBtn.disabled = true;
+
+            const jobDetail = jobDetails[selectedJob];
+            let activity = jobDetail ? jobDetail.activity : '열심히 일하는';
+            let background = jobDetail ? jobDetail.background : '아름다운 풍경의 직장';
+
+            // 프롬프트 강화: 애니메이션 스타일 명확화 및 직업별 구체적인 활동/배경 추가
+            // AI가 헷갈리지 않도록 프롬프트를 더 간단하고 명확하게 변경
+            const prompt = `따뜻한 애니메이션 그림체. ${background}에서 ${selectedGender} ${selectedJob}(이)가 ${activity}하는 모습. 밝은 표정.`;
+            
+            // AI 모델 변경: imagen-3.0-generate-002 -> gemini-2.5-flash-image-preview
+            // API 엔드포인트 및 요청/응답 방식이 변경됩니다.
+            const apiKey = "AIzaSyCoQIO9R6v2DTl-KqicmVtd5ALPNzFmo_k"; // Canvas 환경에서 자동으로 제공됩니다.
+            const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-image-preview:generateContent?key=${apiKey}`;
+            
+            // gemini-2.5-flash-image-preview 모델의 요청(payload) 형식
+            const payload = {
+                contents: [{
+                    parts: [{ text: prompt }]
+                }],
+                generationConfig: {
+                    responseModalities: ['TEXT', 'IMAGE']
+                },
+            };
+            
+            // 재시도 로직을 포함한 fetch
+            let response;
+            let success = false;
+            for (let i = 0; i < 3; i++) { // 최대 3번 재시도
+                try {
+                    response = await fetch(apiUrl, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify(payload)
+                    });
+                    
+                    if (response.ok) {
+                        success = true;
+                        break;
+                    }
+                    
+                    if (response.status === 429 || response.status >= 500) {
+                        await new Promise(resolve => setTimeout(resolve, Math.pow(2, i) * 1000)); // Exponential backoff
+                    } else {
+                        break; 
+                    }
+                } catch (error) {
+                    console.error('Fetch error:', error);
+                    if (i < 2) { 
+                        await new Promise(resolve => setTimeout(resolve, Math.pow(2, i) * 1000));
+                    }
+                }
+            }
+
+            loader.classList.add('hidden'); // 로더 숨기기
+
+            if (!success || !response) {
+                console.error('API call failed after retries.');
+                showError('그림을 만드는데 실패했어요. 잠시 후 다시 시도해주세요.');
+                generateBtn.disabled = false;
+                return;
+            }
+
+            try {
+                const result = await response.json();
+                
+                // gemini-2.5-flash-image-preview 응답 구조에 맞게 파싱
+                const imagePart = result?.candidates?.[0]?.content?.parts?.find(p => p.inlineData);
+                const base64Data = imagePart?.inlineData?.data;
+
+                if (base64Data) {
+                    resultImage.src = `data:image/png;base64,${base64Data}`;
+                    resultImage.classList.remove('hidden');
+                } else {
+                    console.error('Unexpected API response:', result);
+                    // 응답 형식이 다를 경우를 대비해 에러 메시지 수정
+                    showError('그림을 받아오지 못했어요. 응답 형식이 다릅니다.');
+                }
+            } catch (error) {
+                console.error('Error parsing response:', error);
+                showError('그림을 받아오는 중 오류가 발생했어요.');
+            }
+            
+            generateBtn.disabled = false; // 버튼 다시 활성화
+        }
+        
+        // 에러 메시지 표시
+        function showError(message) {
+            errorMessage.textContent = message;
+            errorMessage.classList.remove('hidden');
+        }
+
+    </script>
+
+</body>
+</html>
+
+
